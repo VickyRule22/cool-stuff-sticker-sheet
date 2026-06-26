@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Modern Checkout Flow - Live Build</title>
+<style>
+  :root{
+    --bg:#0e0e10;
+    --stage:#faf9f6;
+    --ink:#111827;
+    --muted:#6b7280;
+    --line:#c9c7c0;
+    --shadow:0 10px 30px rgba(17,24,39,.10), 0 2px 6px rgba(17,24,39,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .wrap{position:fixed;inset:0;display:grid;place-items:center;overflow:hidden}
+  .scaler{transform-origin:center center}
+  .stage{
+    position:relative;width:1440px;height:820px;background:var(--stage);
+    border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.45);
+    overflow:hidden;
+  }
+  .title{position:absolute;left:44px;top:34px;z-index:5}
+  .title h1{margin:0;font-size:30px;letter-spacing:-.02em;color:var(--ink);font-weight:700}
+  .title p{margin:6px 0 0;font-size:14px;color:var(--muted);font-weight:500}
+
+  svg.edges{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+  .edge{fill:none;stroke:var(--line);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;
+        filter:drop-shadow(0 1px 0 rgba(255,255,255,.6))}
+  .edge.dash{stroke-dasharray:7 7}
+  .edge-label{font:600 12px/1 Inter,sans-serif;fill:var(--muted)}
+  .edge-label-bg{fill:var(--stage)}
+
+  .node{position:absolute;z-index:3;display:flex;align-items:center;justify-content:center;
+        text-align:center;border-radius:16px;padding:10px 14px;font-weight:600;font-size:14px;
+        line-height:1.25;box-shadow:var(--shadow);
+        opacity:0;transform:translateY(10px) scale(.9);
+        transition:opacity .42s cubic-bezier(.2,.8,.2,1), transform .42s cubic-bezier(.2,.8,.2,1)}
+  .node.show{opacity:1;transform:translateY(0) scale(1)}
+  .node .k{position:absolute;top:-9px;left:14px;font-size:9px;letter-spacing:.14em;
+           text-transform:uppercase;padding:2px 7px;border-radius:999px;font-weight:700}
+
+  .step{background:#fff;color:var(--ink);border:1px solid #e7e5df}
+  .start,.done{background:var(--ink);color:#fff}
+  .decision{background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:14px}
+  .wallet{background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe}
+  .success{background:#dcfce7;color:#065f46;border:1px solid #bbf7d0}
+  .error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+
+  .cursor{position:absolute;z-index:9;width:26px;height:26px;left:0;top:0;
+          transform:translate(-4px,-2px);transition:transform .5s cubic-bezier(.45,.05,.2,1);
+          filter:drop-shadow(0 4px 6px rgba(0,0,0,.3));pointer-events:none}
+  .controls{position:absolute;right:22px;top:22px;z-index:10;display:flex;gap:10px}
+  .btn{font:600 13px Inter,sans-serif;color:var(--ink);background:#fff;border:1px solid #e3e1da;
+       padding:8px 14px;border-radius:999px;cursor:pointer;box-shadow:var(--shadow)}
+  .btn:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scaler" id="scaler">
+    <div class="stage" id="stage">
+      <div class="title">
+        <h1>Modern Checkout</h1>
+        <p>High-end user flow: express wallet, smart validation, recoverable errors</p>
+      </div>
+      <div class="controls"><button class="btn" id="replay">&#8634; Replay</button></div>
+      <svg class="edges" id="edges" viewBox="0 0 1440 820" preserveAspectRatio="none"></svg>
+      <svg class="cursor" id="cursor" viewBox="0 0 28 28">
+        <path d="M5 3 L23 13 L14 15 L11 24 Z" fill="#111827" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+const N = {
+  start:    {x:40,  y:120, w:170,h:64, label:"Shopper taps Checkout", kind:"start"},
+  express:  {x:250, y:116, w:170,h:72, label:"Express checkout?", kind:"decision"},
+  wallet:   {x:215, y:232, w:240,h:58, label:"One-tap wallet: card + address auto-filled", kind:"wallet"},
+  identity: {x:500, y:120, w:170,h:64, label:"Sign in or guest", kind:"step"},
+  contact:  {x:720, y:120, w:170,h:64, label:"Contact: email + phone", kind:"step"},
+  shipping: {x:940, y:120, w:180,h:64, label:"Shipping + autocomplete", kind:"step"},
+  addr:     {x:1180,y:116, w:170,h:72, label:"Address valid?", kind:"decision"},
+  fix:      {x:1180,y:260, w:170,h:60, label:"Confirm or edit address", kind:"step"},
+
+  delivery: {x:1180,y:380, w:180,h:64, label:"Delivery: std / express / pickup", kind:"step"},
+  payment:  {x:940, y:380, w:180,h:64, label:"Payment: card or wallet", kind:"step"},
+  promo:    {x:720, y:380, w:170,h:64, label:"Promo / gift card", kind:"step"},
+  review:   {x:500, y:380, w:170,h:64, label:"Order review + totals", kind:"step"},
+  place:    {x:280, y:380, w:160,h:64, label:"Place order", kind:"step"},
+  auth:     {x:60,  y:376, w:170,h:72, label:"Payment authorized?", kind:"decision"},
+  error:    {x:940, y:486, w:180,h:56, label:"Retry or switch payment", kind:"error"},
+
+  confirm:  {x:60,  y:620, w:180,h:64, label:"Confirmation + tracking", kind:"success"},
+  receipt:  {x:290, y:620, w:180,h:64, label:"Receipt + add to wallet", kind:"success"},
+  done:     {x:520, y:622, w:120,h:60, label:"Done", kind:"done"},
+};
+
+// from, to, options{label, dash, route:[[x,y]...]}
+const E = [
+  ["start","express"],
+  ["express","wallet",{label:"Express"}],
+  ["express","identity",{label:"Step by step"}],
+  ["identity","contact"],
+  ["contact","shipping"],
+  ["shipping","addr"],
+  ["addr","fix",{label:"No"}],
+  ["fix","shipping"],
+  ["addr","delivery",{label:"Yes"}],
+  ["delivery","payment"],
+  ["payment","promo"],
+  ["promo","review"],
+  ["review","place"],
+  ["place","auth"],
+  ["auth","error",{label:"Declined"}],
+  ["error","payment"],
+  ["auth","confirm",{label:"Approved"}],
+  ["wallet","auth"],
+  ["confirm","receipt"],
+  ["receipt","done"],
+];
+
+const kindLabel = {start:"Start",decision:"Decision",wallet:"Express",success:"Done",error:"Recover",step:"",done:""};
+const kindChip  = {decision:"#92400e", wallet:"#5b21b6", success:"#065f46", error:"#991b1b"};
+const kindChipBg= {decision:"#fde68a", wallet:"#ddd6fe", success:"#bbf7d0", error:"#fecaca"};
+
+const stage=document.getElementById('stage');
+const edges=document.getElementById('edges');
+const cursor=document.getElementById('cursor');
+const els={};
+
+function buildNodes(){
+  for(const id in N){
+    const n=N[id];
+    const d=document.createElement('div');
+    d.className='node '+n.kind;
+    d.style.left=n.x+'px'; d.style.top=n.y+'px';
+    d.style.width=n.w+'px'; d.style.minHeight=n.h+'px';
+    d.innerHTML = n.label;
+    const kl=kindLabel[n.kind];
+    if(kl){
+      const chip=document.createElement('span');
+      chip.className='k'; chip.textContent=kl;
+      chip.style.color=kindChip[n.kind]||'#374151';
+      chip.style.background=kindChipBg[n.kind]||'#e5e7eb';
+      d.appendChild(chip);
+    }
+    stage.appendChild(d);
+    els[id]=d;
+  }
+}
+
+function cx(n){return n.x+n.w/2}
+function cy(n){return n.y+n.h/2}
+
+function path(a,b,opt){
+  if(opt&&opt.route){
+    return "M"+opt.route.map(p=>p.join(" ")).join(" L ");
+  }
+  const dx=cx(b)-cx(a), dy=cy(b)-cy(a);
+  let sx,sy,ex,ey,d;
+  if(Math.abs(dx)>=Math.abs(dy)){ // horizontal-first
+    sx = dx>0 ? a.x+a.w : a.x; sy=cy(a);
+    ex = dx>0 ? b.x : b.x+b.w; ey=cy(b);
+    const mx=(sx+ex)/2;
+    d=`M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ey} L ${ex} ${ey}`;
+  }else{ // vertical-first
+    sy = dy>0 ? a.y+a.h : a.y; sx=cx(a);
+    ey = dy>0 ? b.y : b.y+b.h; ex=cx(b);
+    const my=(sy+ey)/2;
+    d=`M ${sx} ${sy} L ${sx} ${my} L ${ex} ${my} L ${ex} ${ey}`;
+  }
+  return d;
+}
+
+// custom route for the long express-skip line, hugging the top + left margin
+function preroute(){
+  const w=N.wallet, a=N.auth;
+  for(const e of E){
+    if(e[0]==="wallet"&&e[1]==="auth"){
+      e[2]=e[2]||{}; e[2].dash=true; e[2].label="skip to pay"; e[2].labelPos=0.24;
+      e[2].route=[[w.x, cy(w)],[24, cy(w)],[24, cy(a)],[a.x, cy(a)]];
+    }
+  }
+}
+
+const NS="http://www.w3.org/2000/svg";
+function makeEdge(a,b,opt){
+  const p=document.createElementNS(NS,'path');
+  p.setAttribute('d', path(a,b,opt));
+  p.setAttribute('class','edge'+(opt&&opt.dash?' dash':''));
+  edges.appendChild(p);
+  const len=p.getTotalLength();
+  p.style.strokeDasharray = (opt&&opt.dash)? "7 7" : len;
+  p.style.strokeDashoffset = len;
+  const end=p.getPointAtLength(len);
+  const just=p.getPointAtLength(Math.max(0,len-8));
+  const ang=Math.atan2(end.y-just.y, end.x-just.x);
+  const head=document.createElementNS(NS,'path');
+  const s=7, hx=end.x, hy=end.y;
+  head.setAttribute('d',
+    `M ${hx} ${hy} L ${hx-s*Math.cos(ang-0.5)} ${hy-s*Math.sin(ang-0.5)} `+
+    `L ${hx-s*Math.cos(ang+0.5)} ${hy-s*Math.sin(ang+0.5)} Z`);
+  head.setAttribute('fill','#c9c7c0'); head.style.opacity=0;
+  edges.appendChild(head);
+  let label=null;
+  if(opt&&opt.label){
+    const frac=(opt&&typeof opt.labelPos==='number')?opt.labelPos:0.5;
+    const mid=p.getPointAtLength(len*frac);
+    const g=document.createElementNS(NS,'g'); g.style.opacity=0;
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('class','edge-label'); t.setAttribute('x',mid.x); t.setAttribute('y',mid.y+4);
+    t.setAttribute('text-anchor','middle'); t.textContent=opt.label;
+    const bg=document.createElementNS(NS,'rect');
+    const wpx=opt.label.length*6.6+12;
+    bg.setAttribute('class','edge-label-bg');
+    bg.setAttribute('x',mid.x-wpx/2);bg.setAttribute('y',mid.y-9);
+    bg.setAttribute('width',wpx);bg.setAttribute('height',18);bg.setAttribute('rx',6);
+    g.appendChild(bg);g.appendChild(t);edges.appendChild(g);
+    label=g;
+  }
+  return {p,len,head,label,dash:!!(opt&&opt.dash)};
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function moveCursor(n){ cursor.style.transform=`translate(${cx(n)-4}px, ${cy(n)-2}px)`; }
+
+async function run(){
+  edges.innerHTML=''; Object.values(els).forEach(e=>e.classList.remove('show'));
+  E.forEach(e=>e._drawn=false);
+  cursor.style.transform='translate(60px,40px)';
+  preroute();
+  await sleep(400);
+
+  const shown=new Set();
+  for(const id of Object.keys(N)){
+    moveCursor(N[id]);
+    await sleep(360);
+    els[id].classList.add('show');
+    shown.add(id);
+    await sleep(180);
+    for(const e of E){
+      if(e._drawn) continue;
+      if(shown.has(e[0])&&shown.has(e[1])){
+        e._drawn=true;
+        const ed=makeEdge(N[e[0]],N[e[1]],e[2]);
+        ed.p.style.transition='stroke-dashoffset .5s ease';
+        requestAnimationFrame(()=>{ ed.p.style.strokeDashoffset = ed.dash? -14 : 0; });
+        setTimeout(()=>{ ed.head.style.transition='opacity .25s'; ed.head.style.opacity=1;
+                         if(ed.label){ed.label.style.transition='opacity .3s';ed.label.style.opacity=1;} }, 430);
+        await sleep(120);
+      }
+    }
+  }
+}
+
+function fit(){
+  const pad=40;
+  const s=Math.min((innerWidth-pad)/1440,(innerHeight-pad)/820);
+  document.getElementById('scaler').style.transform=`scale(${s})`;
+}
+addEventListener('resize',fit);
+
+buildNodes(); fit();
+document.getElementById('replay').onclick=run;
+run();
+</script>
+</body>
+</html>

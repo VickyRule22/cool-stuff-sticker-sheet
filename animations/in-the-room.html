@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>In the room &middot; live build</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F4EFE4;
+    --cream-2:#FBF8F1;
+    --card:#FCFAF4;
+    --ink:#1B1A17;
+    --ink-soft:#403E38;
+    --muted:#8C887D;
+    --line:#E7E0D1;
+    --rec:#B23A2B;
+    --green:#3E6B52;
+    --green-soft:#86A18C;
+    --amber:#B7893A;
+    --amber-bg:#FBF2DE;
+    --pink-bg:#F6EAE6;
+    --end:#C0463A;
+    --pause:#EAE3D4;
+    --wave-a:#2C6E6A;
+    --wave-b:#3E6B52;
+    --blue:#0a0c10;
+    --grid:rgba(120,150,160,.18);
+    --device:#0d0f12;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 50% -10%, #1b222b 0%, var(--blue) 60%), var(--blue);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:#fff;overflow:hidden;
+  }
+  .wrap{position:fixed;inset:0;display:grid;place-items:center}
+
+  .caption{
+    position:fixed;left:50%;top:34px;transform:translateX(-50%);
+    font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.16em;
+    text-transform:uppercase;color:#9fb0ad;display:flex;align-items:center;gap:10px;z-index:30;
+  }
+  .caption .dot{width:7px;height:7px;border-radius:50%;background:#5b6b68;transition:background .4s}
+  .caption.live .dot{background:var(--rec);animation:pulse 1.6s infinite}
+  .replay{
+    position:fixed;right:26px;bottom:26px;z-index:30;
+    font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    color:#cdd7d5;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);
+    padding:10px 16px;border-radius:999px;cursor:pointer;backdrop-filter:blur(6px);transition:.2s;
+  }
+  .replay:hover{background:rgba(255,255,255,.12);color:#fff}
+
+  .scaler{transform-origin:center center}
+  .phone{
+    position:relative;width:378px;height:846px;border-radius:56px;background:var(--device);padding:13px;
+    box-shadow:0 2px 2px rgba(255,255,255,.10) inset,0 50px 90px -20px rgba(0,0,0,.7),0 0 0 2px #2a2e34,0 0 0 11px #0a0c0f;
+    opacity:0;transform:translateY(26px) scale(.97);
+    transition:opacity .7s cubic-bezier(.2,.8,.2,1), transform .9s cubic-bezier(.2,.8,.2,1);
+  }
+  .phone.in{opacity:1;transform:none}
+  .screen{position:relative;width:100%;height:100%;border-radius:44px;overflow:hidden;background:var(--cream);color:var(--ink)}
+  .screen::before{
+    content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:26px 26px;opacity:0;transition:opacity .6s;
+  }
+  .screen.blueprint::before{opacity:1}
+
+  .island{position:absolute;top:13px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:20}
+  .island::after{content:"";position:absolute;right:13px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:#0c1418;box-shadow:0 0 0 1px #1a2a30}
+
+  .status{position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:15;font-weight:700;font-size:15px}
+  .status .time{margin-top:6px}
+  .status .ic{margin-top:6px;display:flex;align-items:center;gap:6px}
+
+  .content{position:absolute;inset:0;padding:58px 20px 0;z-index:5;overflow:hidden}
+
+  .u{opacity:0;transform:translateY(14px);filter:blur(6px);transition:opacity .5s ease, transform .55s cubic-bezier(.2,.85,.25,1), filter .5s ease}
+  .u.in{opacity:1;transform:none;filter:none}
+
+  .rec-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+  .rec{display:flex;align-items:center;gap:9px;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px;letter-spacing:.18em;color:var(--rec)}
+  .rec .d{width:9px;height:9px;border-radius:50%;background:var(--rec);animation:pulse 1.7s infinite}
+  .rec-time{font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:18px;color:var(--ink-soft);letter-spacing:.02em}
+  .with-lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+  .with-name{font-size:25px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  .with-name .spec{font-weight:500}
+  .with-name .mid{color:var(--muted);font-weight:400;margin:0 4px}
+
+  .tcard{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:15px 16px 12px;box-shadow:0 14px 30px -22px rgba(40,35,20,.5)}
+  .tcard-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+  .tcard-head .l,.tcard-head .r{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+  .tcard-head .l{color:var(--muted)}
+  .tcard-head .r{color:var(--green);display:flex;align-items:center;gap:6px}
+  .tcard-head .r .chip{width:6px;height:6px;border-radius:2px;background:var(--green)}
+
+  .line{margin-bottom:10px}
+  .line .meta{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
+  .line .meta b{color:var(--ink-soft);font-weight:600}
+  .line .txt{font-size:15px;line-height:1.32;color:var(--ink);letter-spacing:-.01em}
+  .line.faint .txt{color:#9b978c}
+  .cursor-blk{display:inline-block;width:9px;height:17px;background:var(--green);vertical-align:-2px;margin-left:2px;animation:blink 1s steps(1) infinite}
+
+  .qhead{display:flex;align-items:center;justify-content:space-between;margin:16px 2px 10px}
+  .qhead .l{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .qhead .r{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--green);letter-spacing:.04em}
+  .q{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:15px;margin-bottom:8px;background:var(--cream-2);border:1px solid transparent}
+  .q.pink{background:var(--pink-bg)}
+  .q.active{background:var(--amber-bg);border-color:#E7CB8E}
+  .q .mark{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;margin-top:1px}
+  .q .mark.done{background:#D6E6D8}
+  .q .mark.done svg{width:12px;height:12px;stroke:var(--green);stroke-width:2.5;fill:none}
+  .q .mark.open{border:2px solid var(--amber);background:transparent}
+  .q .mark.open i{width:7px;height:7px;border-radius:50%;background:var(--amber);display:block}
+  .q .body .qt{font-size:14.5px;line-height:1.3;color:var(--ink);letter-spacing:-.01em}
+  .q.answered .qt{color:var(--green-soft);text-decoration:line-through;text-decoration-color:rgba(134,161,140,.7)}
+  .q .body .sub{margin-top:6px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);letter-spacing:.02em}
+  .q.active .qt{color:var(--ink);font-weight:600}
+
+  .barwrap{position:absolute;left:0;right:0;bottom:0;z-index:18;padding:12px 20px 16px;
+    background:linear-gradient(to top, var(--cream) 55%, rgba(244,239,228,0));
+    transform:translateY(120%);transition:transform .6s cubic-bezier(.2,.85,.25,1)}
+  .barwrap.in{transform:none}
+  .bar{display:flex;align-items:center;gap:14px;background:var(--cream-2);border:1px solid var(--line);border-radius:999px;padding:10px 12px;box-shadow:0 16px 30px -18px rgba(40,35,20,.5)}
+  .pausebtn{flex:0 0 auto;width:52px;height:52px;border-radius:50%;background:var(--pause);display:grid;place-items:center}
+  .pausebtn span{display:flex;gap:5px}
+  .pausebtn span i{width:5px;height:18px;border-radius:2px;background:var(--ink-soft)}
+  .wave{flex:1;height:44px;display:flex;align-items:center;justify-content:center;gap:3px;overflow:hidden}
+  .wave i{flex:0 0 4px;width:4px;height:8%;border-radius:3px;background:linear-gradient(to bottom,var(--wave-a),var(--wave-b));transition:height .09s linear}
+  .endbtn{flex:0 0 auto;background:var(--end);color:#fff;font-weight:700;font-size:15.5px;padding:15px 22px;border-radius:999px;letter-spacing:-.01em;box-shadow:0 8px 18px -8px rgba(192,70,58,.7)}
+
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(178,58,43,.45)}70%{box-shadow:0 0 0 9px rgba(178,58,43,0)}100%{box-shadow:0 0 0 0 rgba(178,58,43,0)}}
+  @keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+</style>
+</head>
+<body>
+  <div class="caption" id="caption"><span class="dot"></span><span id="captext">assembling interface</span></div>
+
+  <div class="wrap">
+    <div class="scaler" id="scaler">
+      <div class="phone" id="phone">
+        <div class="screen blueprint" id="screen">
+          <div class="island"></div>
+
+          <div class="status u" data-u="status">
+            <div class="time">9:41</div>
+            <div class="ic">
+              <svg width="18" height="12" viewBox="0 0 18 12"><g fill="#1B1A17"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></g></svg>
+              <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><path d="M8.5 2C5.4 2 2.6 3.2.6 5.2" stroke="#1B1A17" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 5.4c-1.9 0-3.6.7-4.9 2" stroke="#1B1A17" stroke-width="1.8" stroke-linecap="round"/><circle cx="8.5" cy="9.6" r="1.6" fill="#1B1A17"/></svg>
+              <svg width="26" height="13" viewBox="0 0 26 13"><rect x="1" y="1" width="22" height="11" rx="3" fill="none" stroke="#1B1A17" stroke-opacity=".4" stroke-width="1.2"/><rect x="3" y="3" width="18" height="7" rx="1.5" fill="#1B1A17"/><rect x="24" y="4" width="2" height="5" rx="1" fill="#1B1A17" fill-opacity=".4"/></svg>
+            </div>
+          </div>
+
+          <div class="content" id="content">
+            <div class="u" data-u="recrow">
+              <div class="rec-row">
+                <div class="rec"><span class="d"></span>RECORDING</div>
+                <div class="rec-time">12:47</div>
+              </div>
+            </div>
+            <div class="u" data-u="withname">
+              <div class="with-lbl">In the room with</div>
+              <div class="with-name">Dr. Patel<span class="mid">&middot;</span><span class="spec">oncology</span></div>
+            </div>
+
+            <div class="tcard u" data-u="tcard">
+              <div class="tcard-head">
+                <div class="l">Live transcript</div>
+                <div class="r"><span class="chip"></span>On device</div>
+              </div>
+
+              <div class="line u" data-u="l1">
+                <div class="meta">12:31 &middot; <b>DR. PATEL</b></div>
+                <div class="txt">&hellip;so the spot you saw on the report &mdash; that's the same one we've been watching since October. It hasn't grown.</div>
+              </div>
+              <div class="line u" data-u="l2">
+                <div class="meta">12:39 &middot; <b>ELAINE</b></div>
+                <div class="txt">But it's still there.</div>
+              </div>
+              <div class="line u" data-u="l3">
+                <div class="meta">12:42 &middot; <b>DR. PATEL</b></div>
+                <div class="txt">It is. Stable is good news here. We'll image again in six months, and if it hasn't changed, we move to annual.</div>
+              </div>
+              <div class="line faint u" data-u="l4">
+                <div class="meta">12:47 &middot; <b>DR. PATEL</b></div>
+                <div class="txt"><span id="typetarget"></span><span class="cursor-blk" id="cursor" style="display:none"></span></div>
+              </div>
+            </div>
+
+            <div class="u" data-u="qhead">
+              <div class="qhead">
+                <div class="l">Your questions</div>
+                <div class="r">2 of 5 covered</div>
+              </div>
+            </div>
+
+            <div class="q answered u" data-u="q1">
+              <div class="mark done"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+              <div class="body">
+                <div class="qt">Are my hormone levels stable enough to taper the Anastrozole?</div>
+                <div class="sub">Answered &middot; jump to 3:42</div>
+              </div>
+            </div>
+            <div class="q answered pink u" data-u="q2">
+              <div class="mark done"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+              <div class="body">
+                <div class="qt">The numbness in my right hand &mdash; is that the medication?</div>
+                <div class="sub">Answered &middot; jump to 8:15</div>
+              </div>
+            </div>
+            <div class="q active u" data-u="q3">
+              <div class="mark open"><i></i></div>
+              <div class="body">
+                <div class="qt">Should I be worried about the spot on my last scan?</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="barwrap" id="barwrap">
+            <div class="bar">
+              <div class="pausebtn"><span><i></i><i></i></span></div>
+              <div class="wave" id="wave"></div>
+              <div class="endbtn">End visit</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="replay" id="replay">&#8635; replay build</button>
+
+<script>
+(function(){
+  function fit(){
+    var s = Math.min((window.innerWidth-40)/380, (window.innerHeight-120)/800, 1.05);
+    document.getElementById('scaler').style.transform = 'scale('+s+')';
+  }
+  window.addEventListener('resize', fit); fit();
+
+  var wave = document.getElementById('wave');
+  var BARS = 42, bars = [];
+  for (var i=0;i<BARS;i++){ var b=document.createElement('i'); wave.appendChild(b); bars.push(b); }
+  var live = false, gate = 1, gateTarget = 1, t0 = 0;
+  function rnd(seed){ return (Math.sin(seed*127.1)*43758.5453)%1; }
+  function waveFrame(ts){
+    if(!t0) t0 = ts;
+    var t = (ts - t0);
+    if (Math.floor(t/420)!==Math.floor((t-16)/420)){
+      gateTarget = (Math.abs(rnd(Math.floor(t/420)))<0.16) ? 0.18 : (0.6+Math.abs(rnd(Math.floor(t/420)+7))*0.4);
+    }
+    gate += (gateTarget-gate)*0.12;
+    var amp = live ? gate : 0.12;
+    var center = (BARS-1)/2;
+    for (var i2=0;i2<BARS;i2++){
+      var env = 1 - Math.pow(Math.abs(i2-center)/center, 1.7)*0.55;
+      var s1 = Math.sin(t*0.013 + i2*0.55);
+      var s2 = Math.sin(t*0.027 + i2*1.3 + 2);
+      var s3 = Math.sin(t*0.006 + i2*0.2);
+      var v = (s1*0.45 + s2*0.35 + s3*0.2)*0.5+0.5;
+      var h = (0.10 + v*0.9*env*amp);
+      bars[i2].style.height = (Math.max(0.06, Math.min(1, h))*100).toFixed(1)+'%';
+    }
+    requestAnimationFrame(waveFrame);
+  }
+  requestAnimationFrame(waveFrame);
+
+  var screen = document.getElementById('screen');
+  var phone = document.getElementById('phone');
+  var caption = document.getElementById('caption');
+  var captext = document.getElementById('captext');
+  var barwrap = document.getElementById('barwrap');
+  var cursor = document.getElementById('cursor');
+  var typetarget = document.getElementById('typetarget');
+  var timers = [];
+  function at(ms, fn){ timers.push(setTimeout(fn, ms)); }
+  function show(name){ var el=document.querySelector('[data-u="'+name+'"]'); if(el) el.classList.add('in'); }
+
+  var DASH = String.fromCharCode(8212), ELL = String.fromCharCode(8230);
+  var TYPE = "I want to talk about the travel question too "+DASH+" that's a good one to bring up because"+ELL;
+  function typeOut(str, el, speed){
+    var i=0; (function step(){ if(i<=str.length){ el.textContent=str.slice(0,i); i++; timers.push(setTimeout(step, speed)); } })();
+  }
+
+  function reset(){
+    timers.forEach(clearTimeout); timers=[];
+    live=false; gate=1; gateTarget=1;
+    phone.classList.remove('in');
+    screen.classList.add('blueprint');
+    barwrap.classList.remove('in');
+    cursor.style.display='none'; typetarget.textContent='';
+    caption.classList.remove('live'); captext.textContent='assembling interface';
+    document.querySelectorAll('.u').forEach(function(e){ e.classList.remove('in'); });
+  }
+
+  function run(){
+    reset();
+    at(120, function(){ phone.classList.add('in'); });
+    at(620, function(){ show('status'); });
+    at(820, function(){ captext.textContent='laying out the header'; show('recrow'); });
+    at(1020, function(){ show('withname'); });
+    at(1320, function(){ captext.textContent='streaming transcript'; show('tcard'); });
+    at(1620, function(){ show('l1'); });
+    at(1880, function(){ show('l2'); });
+    at(2120, function(){ show('l3'); });
+    at(2380, function(){ show('l4'); });
+    at(2680, function(){ captext.textContent='matching your questions'; show('qhead'); });
+    at(2880, function(){ show('q1'); });
+    at(3040, function(){ show('q2'); });
+    at(3200, function(){ show('q3'); });
+    at(3520, function(){ captext.textContent='bringing it online'; screen.classList.remove('blueprint'); });
+    at(3720, function(){ barwrap.classList.add('in'); });
+    at(4150, function(){
+      live = true;
+      caption.classList.add('live');
+      captext.innerHTML = 'recording &middot; live';
+      cursor.style.display='inline-block';
+      typeOut(TYPE, typetarget, 38);
+    });
+  }
+
+  document.getElementById('replay').addEventListener('click', run);
+  run();
+})();
+</script>
+</body>
+</html>
