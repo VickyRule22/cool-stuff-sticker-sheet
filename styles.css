@@ -77,6 +77,9 @@ body{
 .blurb{color:var(--ink-muted);font-size:14px;line-height:1.5;margin:8px 0 0}
 .card-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
 .tag{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-muted)}
+.card-actions{display:flex;align-items:center;gap:14px}
+.dl-link{color:var(--ink);font-size:12px;font-weight:700;letter-spacing:0.02em;text-decoration:none;border-bottom:1px solid rgba(31,18,64,0.25);padding-bottom:1px;transition:color .2s ease, border-color .2s ease}
+.dl-link:hover{color:var(--magenta);border-color:var(--magenta)}
 .open-btn{border:0;background:var(--ink);color:#fff;font-size:12px;font-weight:700;letter-spacing:0.04em;padding:9px 18px;border-radius:999px;cursor:pointer;transition:background .2s ease}
 .open-btn:hover{background:var(--magenta)}
 

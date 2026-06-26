@@ -74,7 +74,7 @@
         '<div class="lb-head">' +
           '<div><p class="lb-kicker">Preview</p><h3></h3></div>' +
           '<div class="lb-actions">' +
-            '<a class="lb-tab" target="_blank" rel="noreferrer">Open in new tab ↗</a>' +
+            '<a class="lb-tab" download>Download ↓</a>' +
             '<button class="lb-close" aria-label="Close preview">✕</button>' +
           '</div>' +
         '</div>' +
@@ -95,6 +95,7 @@
     return function open(s) {
       title.textContent = s.title;
       tab.href = s.src;
+      tab.setAttribute('download', s.id + '.html');
       stage.innerHTML = '';
       if (s.frame === 'mobile') {
         stage.classList.add('lb-stage-mobile');
@@ -143,9 +144,13 @@
       var tag = el('span', 'tag'); tag.textContent = s.tag;
       foot.appendChild(tag);
       if (live) {
+        var actions = el('div', 'card-actions');
+        var dl = el('a', 'dl-link');
+        dl.href = s.src; dl.setAttribute('download', s.id + '.html'); dl.textContent = 'Download ↓';
         var btn = el('button', 'open-btn'); btn.type = 'button'; btn.textContent = 'Preview';
         btn.addEventListener('click', function () { openLightbox(s); });
-        foot.appendChild(btn);
+        actions.appendChild(dl); actions.appendChild(btn);
+        foot.appendChild(actions);
       }
       meta.appendChild(h2); meta.appendChild(blurb); meta.appendChild(foot);
       card.appendChild(meta);
@@ -176,8 +181,8 @@
       titleWrap.appendChild(h2); titleWrap.appendChild(tag);
       head.appendChild(num); head.appendChild(titleWrap);
       if (live) {
-        var tab = el('a', 'reel-tab'); tab.href = s.src; tab.target = '_blank';
-        tab.rel = 'noreferrer'; tab.textContent = 'Open in new tab ↗';
+        var tab = el('a', 'reel-tab'); tab.href = s.src;
+        tab.setAttribute('download', s.id + '.html'); tab.textContent = 'Download ↓';
         head.appendChild(tab);
       }
       item.appendChild(head);

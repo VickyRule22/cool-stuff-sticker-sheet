@@ -7,6 +7,10 @@ carries a number in the corner, so a reviewer can call them out by number
 - **`index.html`**: the grid. Numbered cards; click one to expand in a lightbox.
 - **`all.html`**: the reel. Every animation at full size, stacked to scroll through.
 
+Each live tile has a **Download** link that saves the self-contained `.html`
+file for that animation, so it can be re-hosted anywhere (drop it on any cloud
+or static host and it just runs).
+
 ## Add a new animation
 
 1. Drop its self-contained HTML into `animations/`.
