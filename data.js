@@ -39,13 +39,4 @@ window.STICKERS = [
     frame: 'desktop',
     status: 'live',
   },
-  {
-    id: 'bounce-bugs',
-    title: 'Bounce Bugs',
-    blurb: 'A playful mobile animation, still in the works. The slot is here so you can call it early.',
-    tag: 'Mobile · in progress',
-    src: null,
-    frame: 'mobile',
-    status: 'soon',
-  },
 ];
