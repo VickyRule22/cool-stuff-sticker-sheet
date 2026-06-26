@@ -18,7 +18,7 @@
       slot.style.height = Math.round(displayW * 0.62) + 'px';
       var dots = el('div', 'soon-dots');
       dots.innerHTML = '<span></span><span></span><span></span>';
-      var p = el('p'); p.textContent = 'Coming soon';
+      var p = el('p'); p.textContent = s.note || 'Coming soon';
       slot.appendChild(dots); slot.appendChild(p);
       return { node: slot, fit: function () {} };
     }

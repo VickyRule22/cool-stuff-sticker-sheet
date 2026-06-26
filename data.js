@@ -23,11 +23,12 @@ window.STICKERS = [
   {
     id: 'blue-stream',
     title: 'Blue Stream Fiber: Tech Visit',
-    blurb: 'A senior redesign of the tech-visit flow, walking through the whole mobile journey end to end.',
-    tag: 'Mobile flow',
-    src: 'animations/blue-stream/app.html',
+    blurb: 'A senior redesign of the tech-visit flow. Client work, so the live walkthrough is shared privately rather than on this public page.',
+    tag: 'Mobile · shared privately',
+    src: null,
     frame: 'mobile',
-    status: 'live',
+    status: 'soon',
+    note: 'Shared privately',
   },
   {
     id: 'in-the-room',
